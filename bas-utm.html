@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BAS UTM — Campus Shuttle Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --maroon: #8B1A1A; --maroon-dark: #5C0E0E; --gold: #C9A84C; --gold-light: #E8C97A;
+  --cream: #FAF6F0; --dark: #1A0A0A; --gray: #6B5B5B; --light-gray: #EDE8E3; --white: #FFFFFF;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'DM Sans',sans-serif; background:var(--cream); color:var(--dark); min-height:100vh; }
+
+header {
+  background:var(--maroon-dark); padding:0 24px; display:flex; align-items:center;
+  justify-content:space-between; height:64px; position:sticky; top:0; z-index:100;
+  box-shadow:0 2px 16px rgba(92,14,14,0.4);
+}
+.logo { display:flex; align-items:center; gap:12px; }
+.logo-icon {
+  width:38px; height:38px; background:var(--gold); border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Syne',sans-serif; font-weight:800; font-size:13px; color:var(--maroon-dark);
+}
+.logo-text { font-family:'Syne',sans-serif; font-weight:700; font-size:20px; color:#fff; letter-spacing:1px; }
+.logo-sub { font-size:11px; color:var(--gold-light); font-weight:300; }
+.live-badge {
+  background:#22C55E; color:white; font-size:11px; font-weight:600;
+  padding:4px 10px; border-radius:20px; display:flex; align-items:center; gap:5px;
+  animation:pulse-badge 2s infinite;
+}
+.live-dot { width:6px; height:6px; background:white; border-radius:50%; animation:blink 1.2s infinite; }
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes pulse-badge{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.4)}50%{box-shadow:0 0 0 6px rgba(34,197,94,0)}}
+
+.nav-tabs { background:var(--maroon); display:flex; padding:0 24px; overflow-x:auto; scrollbar-width:none; }
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab {
+  padding:12px 20px; font-family:'Syne',sans-serif; font-size:13px; font-weight:600;
+  color:rgba(255,255,255,0.6); cursor:pointer; border-bottom:3px solid transparent;
+  white-space:nowrap; transition:all 0.2s; letter-spacing:0.5px;
+}
+.nav-tab:hover{color:var(--gold-light)}
+.nav-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+.main { max-width:1100px; margin:0 auto; padding:24px 16px; }
+.section{display:none} .section.active{display:block}
+.section-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; color:var(--maroon-dark); margin-bottom:6px; }
+.section-subtitle { font-size:14px; color:var(--gray); margin-bottom:24px; }
+.placeholder-note {
+  background:rgba(201,168,76,0.1); border:1px dashed var(--gold); border-radius:10px;
+  padding:12px 16px; font-size:13px; color:var(--gray); margin-bottom:20px;
+  display:flex; align-items:center; gap:8px;
+}
+
+/* TRACKER */
+.tracker-layout { display:grid; grid-template-columns:300px 1fr; gap:20px; align-items:start; }
+@media(max-width:768px){.tracker-layout{grid-template-columns:1fr}}
+.tracker-sidebar {
+  background:white; border-radius:14px; overflow:hidden;
+  box-shadow:0 2px 12px rgba(139,26,26,0.08); border:1px solid rgba(139,26,26,0.08);
+}
+.sidebar-header { background:var(--maroon); padding:14px 18px; color:white; font-family:'Syne',sans-serif; font-weight:700; font-size:14px; }
+.bus-list{padding:10px}
+.bus-item {
+  display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px;
+  cursor:pointer; transition:background 0.15s; margin-bottom:4px;
+}
+.bus-item:hover{background:var(--light-gray)}
+.bus-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.bus-details{flex:1}
+.bus-route-name{font-weight:600;font-size:14px;color:var(--dark)}
+.bus-next-stop{font-size:12px;color:var(--gray);margin-top:2px}
+.bus-eta{text-align:right}
+.eta-time{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:var(--maroon)}
+.eta-label{font-size:10px;color:var(--gray)}
+
+.map-container {
+  background:white; border-radius:14px; overflow:hidden;
+  box-shadow:0 2px 12px rgba(139,26,26,0.08); border:1px solid rgba(139,26,26,0.08);
+}
+.map-header {
+  padding:14px 18px; border-bottom:1px solid var(--light-gray);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.map-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--dark)}
+.map-note{font-size:11px;color:var(--gray);background:var(--light-gray);padding:3px 10px;border-radius:20px}
+
+@keyframes bm1{0%,100%{transform:translate(0,0)}33%{transform:translate(9px,-5px)}66%{transform:translate(-5px,7px)}}
+@keyframes bm2{0%,100%{transform:translate(0,0)}33%{transform:translate(-7px,6px)}66%{transform:translate(11px,-4px)}}
+@keyframes bm3{0%,100%{transform:translate(0,0)}33%{transform:translate(6px,9px)}66%{transform:translate(-9px,-3px)}}
+@keyframes bm4{0%,100%{transform:translate(0,0)}33%{transform:translate(-4px,-8px)}66%{transform:translate(8px,4px)}}
+.bm1{animation:bm1 5s ease-in-out infinite}
+.bm2{animation:bm2 6s ease-in-out infinite 1s}
+.bm3{animation:bm3 7s ease-in-out infinite 2s}
+.bm4{animation:bm4 4.5s ease-in-out infinite 0.5s}
+
+/* ROUTES */
+.routes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.route-card {
+  background:white; border-radius:14px; overflow:hidden;
+  box-shadow:0 2px 12px rgba(139,26,26,0.08); cursor:pointer;
+  transition:transform 0.2s,box-shadow 0.2s; border:1px solid rgba(139,26,26,0.08);
+}
+.route-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(139,26,26,0.15)}
+.route-card-header{padding:16px 18px;display:flex;align-items:center;gap:12px}
+.route-badge{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:white;flex-shrink:0}
+.route-info{flex:1}
+.route-name{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--dark)}
+.route-desc{font-size:12px;color:var(--gray);margin-top:2px}
+.route-status{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.status-active{background:#D1FAE5;color:#065F46}
+.status-inactive{background:#FEE2E2;color:#991B1B}
+.route-card-body{padding:0 18px 16px}
+.route-stops-preview{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stop-chip{background:var(--light-gray);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--gray);font-weight:500}
+.stop-arrow{color:var(--gray);font-size:11px}
+.route-meta{display:flex;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--light-gray)}
+.route-meta-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--gray)}
+
+/* SCHEDULE */
+.schedule-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.filter-btn {
+  padding:7px 16px; border-radius:20px; border:2px solid var(--light-gray);
+  background:white; font-size:13px; font-weight:600; cursor:pointer;
+  transition:all 0.15s; font-family:'DM Sans',sans-serif; color:var(--gray);
+}
+.filter-btn:hover{border-color:var(--maroon);color:var(--maroon)}
+.filter-btn.active{background:var(--maroon);border-color:var(--maroon);color:white}
+.schedule-table-wrap{background:white;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(139,26,26,0.08);border:1px solid rgba(139,26,26,0.08);overflow-x:auto}
+.schedule-table{width:100%;border-collapse:collapse}
+.schedule-table th{background:var(--maroon);color:white;padding:12px 16px;text-align:left;font-family:'Syne',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.5px}
+.schedule-table td{padding:11px 16px;font-size:13px;border-bottom:1px solid var(--light-gray);color:var(--dark);vertical-align:top}
+.schedule-table tr:last-child td{border-bottom:none}
+.schedule-table tr:hover td{background:var(--cream)}
+.time-chip{display:inline-block;background:var(--light-gray);border-radius:5px;padding:2px 7px;font-size:11px;font-weight:500;margin:2px;color:var(--dark)}
+.schedule-route-badge{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
+.badge-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* STOPS */
+.stops-search{position:relative;margin-bottom:20px}
+.stops-search input{width:100%;padding:12px 16px 12px 42px;border-radius:10px;border:2px solid var(--light-gray);font-size:14px;font-family:'DM Sans',sans-serif;background:white;color:var(--dark);outline:none;transition:border-color 0.2s}
+.stops-search input:focus{border-color:var(--maroon)}
+.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--gray);font-size:16px}
+.stops-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.stop-card{background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(139,26,26,0.06);border:1px solid rgba(139,26,26,0.08);transition:transform 0.15s}
+.stop-card:hover{transform:translateY(-2px)}
+.stop-card-name{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--dark);margin-bottom:6px}
+.stop-card-type{font-size:11px;color:var(--gray);margin-bottom:10px}
+.stop-routes{display:flex;gap:5px;flex-wrap:wrap}
+.stop-route-tag{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;color:white}
+
+footer{background:var(--maroon-dark);color:rgba(255,255,255,0.5);text-align:center;padding:16px;font-size:12px;margin-top:40px}
+footer span{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">BAS</div>
+    <div>
+      <div class="logo-text">BAS UTM</div>
+      <div class="logo-sub">Universiti Teknologi Malaysia · Johor Bahru</div>
+    </div>
+  </div>
+  <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+</header>
+
+<nav class="nav-tabs">
+  <div class="nav-tab active" onclick="showSection('tracker')">🗺 Live Tracker</div>
+  <div class="nav-tab" onclick="showSection('routes')">🚌 Routes</div>
+  <div class="nav-tab" onclick="showSection('schedule')">🕐 Schedule</div>
+  <div class="nav-tab" onclick="showSection('stops')">📍 Stops</div>
+</nav>
+
+<div class="main">
+
+  <!-- LIVE TRACKER -->
+  <div class="section active" id="section-tracker">
+    <div class="placeholder-note">
+      ⚡ <span>Live GPS tracking will appear here once buses are equipped. Bus positions below are <strong>simulated for demo purposes</strong>.</span>
+    </div>
+    <div class="tracker-layout">
+      <div class="tracker-sidebar">
+        <div class="sidebar-header">🚌 Active Buses</div>
+        <div class="bus-list" id="busList"></div>
+      </div>
+      <div class="map-container">
+        <div class="map-header">
+          <div class="map-title">UTM JB Campus Map</div>
+          <div class="map-note">Simulated positions</div>
+        </div>
+        <svg viewBox="0 0 720 420" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;background:#EAE5DC">
+          <!-- Green zones -->
+          <ellipse cx="360" cy="210" rx="210" ry="175" fill="#D4ECC4" opacity="0.35"/>
+          <rect x="45" y="95" width="115" height="75" rx="10" fill="#C8E6C2" opacity="0.5"/>
+          <rect x="555" y="55" width="120" height="70" rx="10" fill="#C8E6C2" opacity="0.5"/>
+          <rect x="540" y="295" width="145" height="95" rx="10" fill="#C8E6C2" opacity="0.5"/>
+          <rect x="60" y="310" width="100" height="70" rx="10" fill="#C8E6C2" opacity="0.4"/>
+
+          <!-- Lingkaran Ilmu glow -->
+          <circle cx="360" cy="210" r="118" fill="none" stroke="#C9A84C" stroke-width="22" stroke-opacity="0.18"/>
+          <circle cx="360" cy="210" r="118" fill="none" stroke="#C9A84C" stroke-width="2.5"/>
+
+          <!-- Jalan Amal -->
+          <line x1="235" y1="210" x2="495" y2="210" stroke="#8B1A1A" stroke-width="6" stroke-opacity="0.2"/>
+          <line x1="235" y1="210" x2="495" y2="210" stroke="#8B1A1A" stroke-width="2"/>
+
+          <!-- Route lines -->
+          <!-- A: yellow -->
+          <path d="M 620,210 L 495,210 L 360,210 L 235,210" stroke="#F59E0B" stroke-width="2.5" fill="none" stroke-dasharray="7,4" opacity="0.9"/>
+          <!-- B: red (KP → K9/K10 → T-cluster) -->
+          <path d="M 620,210 L 620,290 L 630,365" stroke="#EF4444" stroke-width="2.5" fill="none" stroke-dasharray="7,4" opacity="0.85"/>
+          <!-- C: blue (K9/K10 → KTC → CP → ring) -->
+          <path d="M 620,290 L 575,330 L 495,210 L 360,210 L 235,210" stroke="#3B82F6" stroke-width="2" fill="none" stroke-dasharray="6,4" opacity="0.65"/>
+          <!-- D: orange (KDOJ → KDSE → CP) -->
+          <path d="M 95,148 L 145,200 L 235,210 L 360,210" stroke="#F97316" stroke-width="2" fill="none" stroke-dasharray="6,4" opacity="0.6"/>
+          <!-- F/G: purple (KTR → KTHO → KTDI → ring → CP) -->
+          <path d="M 268,122 L 360,88 L 420,48 L 478,108 L 495,210 L 360,210" stroke="#8B5CF6" stroke-width="2.5" fill="none" stroke-dasharray="7,4" opacity="0.8"/>
+          <!-- H: pink (CP → V01) -->
+          <path d="M 360,210 L 360,328 L 290,370 L 190,370" stroke="#EC4899" stroke-width="2" fill="none" stroke-dasharray="5,4" opacity="0.6"/>
+
+          <!-- CP hub -->
+          <circle cx="360" cy="210" r="20" fill="#8B1A1A" opacity="0.12"/>
+          <circle cx="360" cy="210" r="13" fill="#8B1A1A"/>
+          <text x="360" y="214" text-anchor="middle" fill="white" font-size="8.5" font-weight="bold" font-family="sans-serif">CP</text>
+
+          <!-- Ring stops -->
+          <circle cx="360" cy="92" r="7" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="360" y="80" text-anchor="middle" fill="#333" font-size="8.5" font-weight="600" font-family="sans-serif">FKA</text>
+
+          <circle cx="462" cy="118" r="6" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="476" y="122" text-anchor="start" fill="#333" font-size="8" font-family="sans-serif">N24</text>
+
+          <circle cx="478" cy="210" r="7" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="490" y="214" text-anchor="start" fill="#333" font-size="8.5" font-weight="600" font-family="sans-serif">P19A</text>
+
+          <circle cx="462" cy="298" r="6" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="466" y="312" text-anchor="middle" fill="#333" font-size="8" font-family="sans-serif">C24</text>
+
+          <circle cx="360" cy="328" r="7" fill="#9C27B0" stroke="white" stroke-width="1.5"/>
+          <text x="360" y="342" text-anchor="middle" fill="#333" font-size="8.5" font-weight="600" font-family="sans-serif">Mosque</text>
+
+          <circle cx="258" cy="298" r="6" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="244" y="312" text-anchor="middle" fill="#333" font-size="8" font-family="sans-serif">C18</text>
+
+          <circle cx="242" cy="210" r="7" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="226" y="214" text-anchor="end" fill="#333" font-size="8.5" font-weight="600" font-family="sans-serif">C07</text>
+
+          <circle cx="258" cy="120" r="6" fill="#795548" stroke="white" stroke-width="1.5"/>
+          <text x="244" y="113" text-anchor="middle" fill="#333" font-size="8" font-family="sans-serif">KTR</text>
+
+          <!-- Jalan Amal stops -->
+          <circle cx="330" cy="210" r="5" fill="#8B1A1A" stroke="white" stroke-width="1.5"/>
+          <text x="330" y="225" text-anchor="middle" fill="#8B1A1A" font-size="7.5" font-family="sans-serif">D05</text>
+
+          <!-- KTHO/KTDI top -->
+          <circle cx="420" cy="48" r="7" fill="#795548" stroke="white" stroke-width="1.5"/>
+          <text x="434" y="52" text-anchor="start" fill="#333" font-size="8" font-family="sans-serif">KTHO/KTDI</text>
+
+          <!-- KP right -->
+          <circle cx="620" cy="210" r="8" fill="#FFC107" stroke="white" stroke-width="2"/>
+          <text x="632" y="214" text-anchor="start" fill="#333" font-size="8.5" font-weight="600" font-family="sans-serif">KP</text>
+
+          <!-- K9/K10 -->
+          <circle cx="620" cy="290" r="7" fill="#795548" stroke="white" stroke-width="1.5"/>
+          <text x="632" y="294" text-anchor="start" fill="#333" font-size="8" font-family="sans-serif">K9/K10</text>
+
+          <!-- T-cluster -->
+          <circle cx="630" cy="365" r="7" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="642" y="369" text-anchor="start" fill="#333" font-size="8" font-family="sans-serif">T02–T08</text>
+
+          <!-- KTC -->
+          <circle cx="575" cy="330" r="6" fill="#FFC107" stroke="white" stroke-width="1.5"/>
+          <text x="562" y="344" text-anchor="middle" fill="#333" font-size="8" font-family="sans-serif">KTC</text>
+
+          <!-- UTM-i -->
+          <circle cx="535" cy="258" r="6" fill="#FFC107" stroke="white" stroke-width="1.5"/>
+          <text x="537" y="272" text-anchor="middle" fill="#333" font-size="7.5" font-family="sans-serif">UTM-i</text>
+
+          <!-- Scholar's Inn / Arked Lestari -->
+          <circle cx="600" cy="258" r="5" fill="#FFC107" stroke="white" stroke-width="1.5"/>
+          <text x="614" y="262" text-anchor="start" fill="#333" font-size="7.5" font-family="sans-serif">Arked Lestari</text>
+
+          <!-- KDOJ/KLG left -->
+          <circle cx="95" cy="148" r="7" fill="#795548" stroke="white" stroke-width="1.5"/>
+          <text x="107" y="152" text-anchor="start" fill="#333" font-size="8" font-family="sans-serif">KDOJ/KLG</text>
+
+          <!-- KDSE -->
+          <circle cx="145" cy="200" r="6" fill="#795548" stroke="white" stroke-width="1.5"/>
+          <text x="130" y="197" text-anchor="end" fill="#333" font-size="8" font-family="sans-serif">KDSE</text>
+
+          <!-- Health Centre -->
+          <circle cx="165" cy="158" r="5" fill="#EF4444" stroke="white" stroke-width="1.5"/>
+          <text x="154" y="150" text-anchor="middle" fill="#333" font-size="7.5" font-family="sans-serif">Health Ctr</text>
+
+          <!-- Student Mall -->
+          <circle cx="278" cy="258" r="5" fill="#FFC107" stroke="white" stroke-width="1.5"/>
+          <text x="262" y="272" text-anchor="middle" fill="#333" font-size="7.5" font-family="sans-serif">Std Mall</text>
+
+          <!-- V01 -->
+          <circle cx="190" cy="370" r="6" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="192" y="384" text-anchor="middle" fill="#333" font-size="7.5" font-family="sans-serif">V01 (TMN U)</text>
+
+          <!-- N01 FKT -->
+          <circle cx="530" cy="130" r="5" fill="#4CAF50" stroke="white" stroke-width="1.5"/>
+          <text x="542" y="134" text-anchor="start" fill="#333" font-size="7.5" font-family="sans-serif">N01 (FKT)</text>
+
+          <!-- Equestrian -->
+          <circle cx="530" cy="210" r="5" fill="#FFC107" stroke="white" stroke-width="1.5"/>
+          <text x="542" y="214" text-anchor="start" fill="#333" font-size="7.5" font-family="sans-serif">Equestrian</text>
+
+          <!-- Animated Bus Markers -->
+          <g class="bm1">
+            <circle cx="430" cy="210" r="13" fill="#F59E0B" stroke="white" stroke-width="2.5"/>
+            <text x="430" y="214" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="sans-serif">A</text>
+          </g>
+          <g class="bm2">
+            <circle cx="620" cy="248" r="13" fill="#EF4444" stroke="white" stroke-width="2.5"/>
+            <text x="620" y="252" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="sans-serif">B</text>
+          </g>
+          <g class="bm3">
+            <circle cx="388" cy="104" r="13" fill="#8B5CF6" stroke="white" stroke-width="2.5"/>
+            <text x="388" y="108" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="sans-serif">F</text>
+          </g>
+          <g class="bm4">
+            <circle cx="488" cy="290" r="13" fill="#3B82F6" stroke="white" stroke-width="2.5"/>
+            <text x="488" y="294" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="sans-serif">C</text>
+          </g>
+
+          <!-- Legend box -->
+          <rect x="8" y="8" width="148" height="106" rx="8" fill="white" opacity="0.93"/>
+          <text x="16" y="25" font-size="9" font-weight="bold" fill="#8B1A1A" font-family="sans-serif">LEGEND</text>
+          <circle cx="20" cy="38" r="5" fill="#4CAF50"/>
+          <text x="30" y="42" font-size="8" fill="#555" font-family="sans-serif">Faculty / Academic</text>
+          <circle cx="20" cy="53" r="5" fill="#795548"/>
+          <text x="30" y="57" font-size="8" fill="#555" font-family="sans-serif">Residential College</text>
+          <circle cx="20" cy="68" r="5" fill="#FFC107"/>
+          <text x="30" y="72" font-size="8" fill="#555" font-family="sans-serif">Facilities</text>
+          <circle cx="20" cy="83" r="5" fill="#9C27B0"/>
+          <text x="30" y="87" font-size="8" fill="#555" font-family="sans-serif">Mosque / Admin</text>
+          <circle cx="20" cy="98" r="7" fill="#F59E0B" stroke="white" stroke-width="1.5"/>
+          <text x="32" y="102" font-size="8" fill="#555" font-family="sans-serif">Live Bus (demo)</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROUTES -->
+  <div class="section" id="section-routes">
+    <div class="section-title">Bus Routes</div>
+    <div class="section-subtitle">UTM JB Campus — 9 Shuttle Routes · Unit UTM Fleet, JAB TNC(P)</div>
+    <div class="routes-grid" id="routesGrid"></div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="section" id="section-schedule">
+    <div class="section-title">Bus Schedule</div>
+    <div class="section-subtitle">Operating Hours: Monday – Friday &nbsp;|&nbsp; Session 2025/2026</div>
+    <div class="placeholder-note">
+      📋 <span>Times below are <strong>estimated placeholders</strong>. Upload the official timetable to update with real departure times.</span>
+    </div>
+    <div class="schedule-filter" id="scheduleFilter"></div>
+    <div class="schedule-table-wrap">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th>Route</th><th>Description</th><th>From → To</th><th>Departures (approx.)</th><th>Freq.</th>
+          </tr>
+        </thead>
+        <tbody id="scheduleBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- STOPS -->
+  <div class="section" id="section-stops">
+    <div class="section-title">All Stops</div>
+    <div class="section-subtitle">Search stops and see which routes serve them</div>
+    <div class="stops-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search stop name..." id="stopSearch" oninput="filterStops()">
+    </div>
+    <div class="stops-grid" id="stopsGrid"></div>
+  </div>
+
+</div>
+
+<footer>
+  BAS UTM — Campus Shuttle Tracker &nbsp;|&nbsp;
+  <span>Universiti Teknologi Malaysia, Johor Bahru</span> &nbsp;|&nbsp;
+  Unit UTM Fleet, JAB TNC(P)
+</footer>
+
+<script>
+const ROUTES = [
+  {
+    id:'lingkaran', name:'Lingkaran Ilmu', badge:'🔄', desc:'Main circular loop around campus',
+    color:'#2D2D2D', active:true, freq:'~15 min',
+    stops:['CP','D05','C07','C18','C22','Mosque','C24','P19A','N24','N28','FKA','CP']
+  },
+  {
+    id:'a', name:'BAS A', badge:'A', desc:'KP ↔ CP via Jalan Amal',
+    color:'#F59E0B', active:true, freq:'~20 min',
+    stops:['KP','Equestrian','UTM-i','P19A','CP','D05','C07','KP']
+  },
+  {
+    id:'b', name:'BAS B', badge:'B', desc:'KP ↔ T-Cluster via K9/K10',
+    color:'#EF4444', active:true, freq:'~25 min',
+    stops:['KP','K9/K10','Arked Lestari','T02','T03','T04','T05','T06','T07','T08','K9/K10','KP']
+  },
+  {
+    id:'c', name:'BAS C', badge:'C', desc:'K9/K10 ↔ CP via KTC & Jalan Amal',
+    color:'#3B82F6', active:true, freq:'~25 min',
+    stops:['K9/K10','KTC','P19A','CP','D05','C07','C18','KTC','K9/K10']
+  },
+  {
+    id:'d', name:'BAS D', badge:'D', desc:'KDOJ/KLG ↔ CP via KDSE & Health Centre',
+    color:'#F97316', active:false, freq:'~30 min',
+    stops:['KDOJ/KLG','KDSE','Health Centre','Arked Meranti','Student Mall','CP','D05','C07','KDOJ/KLG']
+  },
+  {
+    id:'e', name:'BAS E', badge:'E', desc:'KDOJ/KLG → T-Cluster (T02–T08)',
+    color:'#10B981', active:false, freq:'~30 min',
+    stops:['KDOJ/KLG','KDSE','K9/K10','T02','T03','T04','T05','T06','T07','T08']
+  },
+  {
+    id:'f', name:'BAS F', badge:'F', desc:'KTR ↔ CP via KTHO, KTDI & Jalan Amal',
+    color:'#8B5CF6', active:true, freq:'~25 min',
+    stops:['KTR','KTHO','KTDI','N28','N24','FKA','D05','CP','KTR']
+  },
+  {
+    id:'g', name:'BAS G', badge:'G', desc:'KTR ↔ CP via KTHO, KTDI & N-zone (SKT)',
+    color:'#06B6D4', active:true, freq:'~30 min',
+    stops:['KTR','KTHO','KTDI','N24','N01 (FKT)','P19A','CP']
+  },
+  {
+    id:'h', name:'BAS H', badge:'H', desc:'CP ↔ Taman Universiti (V01)',
+    color:'#EC4899', active:false, freq:'~40 min',
+    stops:['CP','D05','C07','C18','Mosque','Tropical Park','V01 (TMN U)']
+  }
+];
+
+const SCHEDULE = [
+  { route:'lingkaran', from:'CP', to:'CP (loop)', times:['7:00','7:15','7:30','7:45','8:00','8:15','8:30','9:00','9:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'], freq:'Every 15–30 min' },
+  { route:'a', from:'KP', to:'CP', times:['7:00','7:30','8:00','8:30','9:30','10:30','11:30','12:30','13:30','14:30','15:30','16:30','17:30','18:30'], freq:'Every 30–60 min' },
+  { route:'b', from:'KP', to:'T-Cluster', times:['7:10','8:10','9:10','11:10','13:10','15:10','17:10','19:10'], freq:'Every ~2 hrs' },
+  { route:'c', from:'K9/K10', to:'CP', times:['7:00','8:00','9:00','10:00','12:00','14:00','16:00','18:00'], freq:'Every ~2 hrs' },
+  { route:'d', from:'KDOJ/KLG', to:'CP', times:['7:00','8:30','12:00','14:00','17:00'], freq:'Selected trips' },
+  { route:'e', from:'KDOJ/KLG', to:'T-Cluster', times:['7:30','12:30','17:30'], freq:'3× daily' },
+  { route:'f', from:'KTR', to:'CP', times:['7:00','8:00','9:00','10:00','12:00','14:00','16:00','18:00'], freq:'Every ~2 hrs' },
+  { route:'g', from:'KTR', to:'CP (via N-zone)', times:['7:20','9:20','11:20','13:20','15:20','17:20'], freq:'Every ~2 hrs' },
+  { route:'h', from:'CP', to:'V01 (TMN U)', times:['8:00','13:00','18:00'], freq:'3× daily' }
+];
+
+const STOPS = [
+  { name:'CP (Central Point)', type:'🏛 Main Hub', routes:['lingkaran','a','b','c','d','e','f','g','h'] },
+  { name:'KP', type:'🏠 Residential / Facility', routes:['a','b','c'] },
+  { name:'K9/K10', type:'🏠 Residential College', routes:['b','c','e'] },
+  { name:'KTC', type:'🟡 Facility', routes:['b','c'] },
+  { name:'T02', type:'🏠 Residential College', routes:['b','c','e'] },
+  { name:'T03', type:'🏠 Residential College', routes:['b','c','e'] },
+  { name:'T04', type:'🏠 Residential College', routes:['b','c','e'] },
+  { name:'T05', type:'🏠 Residential College', routes:['b','c','e'] },
+  { name:'T06', type:'🏠 Residential College', routes:['b','c','e'] },
+  { name:'T07', type:'🏠 Residential College', routes:['b','c','e'] },
+  { name:'T08', type:'🏠 Residential College', routes:['b','c','e'] },
+  { name:'Arked Lestari', type:'🛒 Facility', routes:['b','c'] },
+  { name:'KDOJ/KLG', type:'🏠 Residential College', routes:['d','e'] },
+  { name:'KDSE', type:'🏠 Residential College', routes:['d','e'] },
+  { name:'Health Centre', type:'🏥 Facility', routes:['d'] },
+  { name:'Arked Meranti', type:'🛒 Facility', routes:['d'] },
+  { name:'Student Mall', type:'🛒 Facility', routes:['d'] },
+  { name:'KTR', type:'🏠 Residential College', routes:['f','g'] },
+  { name:'KTHO', type:'🏠 Residential College', routes:['f','g'] },
+  { name:'KTDI', type:'🏠 Residential College', routes:['f','g'] },
+  { name:'FKA', type:'🎓 Faculty', routes:['lingkaran','f'] },
+  { name:'N24', type:'🎓 Faculty', routes:['lingkaran','f','g'] },
+  { name:'N28', type:'🎓 Faculty', routes:['lingkaran','f'] },
+  { name:'N01 (FKT)', type:'🎓 Faculty', routes:['g'] },
+  { name:'P19A', type:'🎓 Faculty', routes:['lingkaran','a','c','g'] },
+  { name:'C24', type:'🎓 Faculty', routes:['lingkaran'] },
+  { name:'C22', type:'🎓 Faculty', routes:['lingkaran'] },
+  { name:'Mosque', type:'🕌 Mosque', routes:['lingkaran','h'] },
+  { name:'C18', type:'🎓 Faculty', routes:['lingkaran','c','d','h'] },
+  { name:'C07', type:'🎓 Faculty', routes:['lingkaran','a','c','d','h'] },
+  { name:'D05', type:'🎓 Faculty', routes:['lingkaran','a','c','f','h'] },
+  { name:'UTM-i', type:'🟡 Facility', routes:['a'] },
+  { name:'Equestrian', type:'🟡 Facility', routes:['a'] },
+  { name:'Tropical Park', type:'🌿 Facility', routes:['h'] },
+  { name:'V01 (TMN U)', type:'🏘 Off-campus', routes:['h'] },
+  { name:'Scholar\'s Inn', type:'🏨 Facility', routes:['b'] },
+];
+
+function getRoute(id){ return ROUTES.find(r=>r.id===id); }
+
+// RENDER ROUTES
+function renderRoutes(){
+  document.getElementById('routesGrid').innerHTML = ROUTES.map(r=>`
+    <div class="route-card">
+      <div class="route-card-header">
+        <div class="route-badge" style="background:${r.color}">${r.badge}</div>
+        <div class="route-info">
+          <div class="route-name">${r.name}</div>
+          <div class="route-desc">${r.desc}</div>
+        </div>
+        <div class="route-status ${r.active?'status-active':'status-inactive'}">${r.active?'Active':'Off-peak'}</div>
+      </div>
+      <div class="route-card-body">
+        <div class="route-stops-preview">
+          ${r.stops.slice(0,5).map((s,i)=>`
+            <span class="stop-chip">${s}</span>${i<Math.min(r.stops.length-1,4)?'<span class="stop-arrow">→</span>':''}
+          `).join('')}
+          ${r.stops.length>5?`<span class="stop-chip">+${r.stops.length-5} more</span>`:''}
+        </div>
+        <div class="route-meta">
+          <div class="route-meta-item">🕐 ${r.freq}</div>
+          <div class="route-meta-item">📍 ${r.stops.length} stops</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// RENDER BUS LIST
+function renderBusList(){
+  const active = ROUTES.filter(r=>r.active);
+  document.getElementById('busList').innerHTML = active.map(r=>`
+    <div class="bus-item">
+      <div class="bus-icon" style="background:${r.color}22">
+        <span style="font-size:18px">🚌</span>
+      </div>
+      <div class="bus-details">
+        <div class="bus-route-name">${r.name}</div>
+        <div class="bus-next-stop">Next: ${r.stops[Math.floor(Math.random()*Math.min(3,r.stops.length))]}</div>
+      </div>
+      <div class="bus-eta">
+        <div class="eta-time">${Math.floor(Math.random()*14)+2}m</div>
+        <div class="eta-label">ETA</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// RENDER SCHEDULE
+function renderSchedule(filter='all'){
+  const data = filter==='all' ? SCHEDULE : SCHEDULE.filter(s=>s.route===filter);
+  document.getElementById('scheduleBody').innerHTML = data.map(s=>{
+    const r = getRoute(s.route);
+    return `<tr>
+      <td><div class="schedule-route-badge"><div class="badge-dot" style="background:${r.color}"></div>${r.name}</div></td>
+      <td style="color:var(--gray);font-size:12px">${r.desc}</td>
+      <td style="white-space:nowrap">${s.from} → ${s.to}</td>
+      <td>${s.times.map(t=>`<span class="time-chip">${t}</span>`).join('')}</td>
+      <td style="color:var(--gray);font-size:12px;white-space:nowrap">${s.freq}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderScheduleFilter(){
+  document.getElementById('scheduleFilter').innerHTML =
+    `<button class="filter-btn active" onclick="scheduleFilter(this,'all')">All Routes</button>` +
+    ROUTES.map(r=>`<button class="filter-btn" onclick="scheduleFilter(this,'${r.id}')">${r.name}</button>`).join('');
+}
+
+function scheduleFilter(el, route){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderSchedule(route);
+}
+
+// RENDER STOPS
+function renderStops(q=''){
+  const filtered = STOPS.filter(s=>s.name.toLowerCase().includes(q.toLowerCase()));
+  document.getElementById('stopsGrid').innerHTML = filtered.map(s=>`
+    <div class="stop-card">
+      <div class="stop-card-name">${s.name}</div>
+      <div class="stop-card-type">${s.type}</div>
+      <div class="stop-routes">
+        ${s.routes.map(rid=>{
+          const r=getRoute(rid);
+          if(!r) return '';
+          return `<span class="stop-route-tag" style="background:${r.color}">${r.badge}</span>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterStops(){ renderStops(document.getElementById('stopSearch').value); }
+
+// NAVIGATION
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('section-'+id).classList.add('active');
+  const idx={tracker:0,routes:1,schedule:2,stops:3};
+  document.querySelectorAll('.nav-tab')[idx[id]]?.classList.add('active');
+}
+
+// INIT
+renderRoutes();
+renderBusList();
+renderSchedule();
+renderScheduleFilter();
+renderStops();
+setInterval(renderBusList, 30000);
+</script>
+</body>
+</html>
